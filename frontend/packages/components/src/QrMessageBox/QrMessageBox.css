@@ -97,6 +97,15 @@
   word-break: break-word;
 }
 
+.qr-url {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #374151;
+  word-break: break-all;
+  text-align: center;
+  user-select: text;
+}
+
 @media (max-width: 600px) {
   .qr-message-box {
     max-width: 100%;

@@ -21,6 +21,7 @@ export function QrMessageBox({
 }: QrMessageBoxProps) {
   const t = useT();
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [accessUrl, setAccessUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
   const qrObjectUrlRef = useRef<string | null>(null);
@@ -29,6 +30,7 @@ export function QrMessageBox({
     if (!isOpen) {
       setQrLoading(false);
       setQrError(null);
+      setAccessUrl(null);
       if (qrObjectUrlRef.current) {
         try {
           URL.revokeObjectURL(qrObjectUrlRef.current);
@@ -47,6 +49,7 @@ export function QrMessageBox({
     const run = async () => {
       setQrLoading(true);
       setQrError(null);
+      setAccessUrl(null);
 
       try {
         const res = await fetch(`${apiBase}${endpoint}`, {
@@ -57,7 +60,20 @@ export function QrMessageBox({
           },
         });
 
+        const ct = res.headers.get("content-type") || "";
+
+        // Backend now returns HTTP 200 + JSON on failure, so we must branch by content-type.
+        if (ct.includes("application/json")) {
+          const data = (await res.json()) as any;
+          const msg =
+            (typeof data?.message === "string" && data.message) ||
+            (typeof data?.error === "string" && data.error) ||
+            tOrDefault(t, "webapp.qrDrawer.unknownError", "未知錯誤");
+          throw new Error(msg);
+        }
+
         if (!res.ok) {
+          // Non-JSON errors (proxy/server), keep the status for debugging.
           throw new Error(tOrDefault(t, "webapp.qrDrawer.fetchError", `獲取失敗: ${res.status}`));
         }
 
@@ -65,6 +81,7 @@ export function QrMessageBox({
         activeObjectUrl = URL.createObjectURL(blob);
         qrObjectUrlRef.current = activeObjectUrl;
         setQrImageUrl(activeObjectUrl);
+        setAccessUrl(res.headers.get("x-neko-access-url"));
         return;
       } catch (e: any) {
         if (abortController.signal.aborted) return;
@@ -106,11 +123,10 @@ export function QrMessageBox({
         {!qrLoading && !qrError && !qrImageUrl &&
           tOrDefault(t, "webapp.qrDrawer.placeholder", "二维码区域（待接入）")}
         {!qrLoading && !qrError && qrImageUrl && (
-          <img
-            className="qr-image"
-            src={qrImageUrl}
-            alt={modalTitle}
-          />
+          <>
+            <img className="qr-image" src={qrImageUrl} alt={modalTitle} />
+            {accessUrl && <div className="qr-url">{accessUrl}</div>}
+          </>
         )}
       </div>
       <div className="modal-footer">

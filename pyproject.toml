@@ -23,6 +23,7 @@ dependencies = [
   "python-multipart",
   "pillow",
   "qrcode",
+  "ifaddr==0.2.0",
   "pyautogui",
   "backoff",
   "toml",
